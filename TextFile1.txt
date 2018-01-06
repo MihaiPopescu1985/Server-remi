@@ -1,0 +1,73 @@
+    sf::RenderWindow window( sf::VideoMode( 400, 200), "Server" );
+
+	sf::TcpListener listener ;
+	listener.setBlocking( false);
+
+	sf::TcpSocket peer[2] ;
+	peer[0].setBlocking( false );
+	peer[1].setBlocking( false );
+	int max_peers = 0 ;
+
+	std::list <sf::Packet> first_buffer_pack ;
+	std::list <sf::Packet> second_buffer_pack ;
+	sf::Packet peer_pack ;
+
+	sf::Font font ;
+	font.loadFromFile( "Sansation.ttf" );
+	sf::Text text ;
+	text.setFont( font );
+	text.setCharacterSize( 20 );
+	text.setColor( sf::Color::White );
+	text.setString( "Waiting for peers..." );
+
+	while( window.isOpen( ))
+	{
+		sf::Event event ;
+		window.pollEvent( event );
+
+		if( event.type == sf::Event::Closed )
+		{
+			window.close( );
+		}
+		if( max_peers < 2 )
+		{
+			listener.listen( 31111 );
+
+			if( listener.accept( peer[max_peers]) == sf::Socket::Done )
+			{
+				text.setString( "Peers conected - " + std::to_string( max_peers+1 ));
+				max_peers++ ;
+			}
+		}
+		if( peer[0].receive( peer_pack ) == sf::Socket::Done )
+		{
+			text.setString( "First peer has send a pack." );
+			first_buffer_pack.push_back( peer_pack );
+			peer_pack.clear( );
+		}
+		if( first_buffer_pack.size( ) > 0 && max_peers == 2 )
+		{
+			if( peer[1].send( first_buffer_pack.front( )) == sf::Socket::Done )
+			{
+				first_buffer_pack.pop_front( );
+				text.setString( "A pack to the second peer has been send." );
+			}
+		}
+		if( peer[1].receive( peer_pack ) == sf::Socket::Done )
+		{
+			text.setString( "Second peer has send a pack." );
+			second_buffer_pack.push_back( peer_pack );
+			peer_pack.clear( );
+		}
+		if( second_buffer_pack.size( ) > 0 && max_peers == 2 )
+		{
+			if( peer[0].send( second_buffer_pack.front( )) == sf::Socket::Done )
+			{
+				second_buffer_pack.pop_front( );
+				text.setString( "A pack to the first peer has been send." );
+			}
+		}
+		window.clear( );
+		window.draw( text );
+		window.display( );
+	}
